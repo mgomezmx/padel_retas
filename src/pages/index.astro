@@ -1,0 +1,343 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Padel Match Organizer">
+	<main class="container">
+		<h1>Padel <span class="text-gradient">Retas</span></h1>
+        
+        <div class="controls">
+            <input type="date" id="date-selector" />
+        </div>
+
+        <div id="courts-container" class="courts-grid">
+            <!-- Courts will be rendered here -->
+            <p class="loading">Select a date to view matches</p>
+        </div>
+
+        <div id="user-info" class="user-info">
+            <p>Welcome, <span id="player-name-display">Guest</span></p>
+            <button id="change-name-btn" class="btn-secondary">Change Name</button>
+        </div>
+	</main>
+
+    <dialog id="name-dialog">
+        <form method="dialog">
+            <h3>Enter your name</h3>
+            <input type="text" id="player-name-input" placeholder="Your Name" required />
+            <button type="submit" id="save-name-btn">Save</button>
+        </form>
+    </dialog>
+</Layout>
+
+<script>
+    // Types
+    interface Booking {
+        id: string;
+        match_id: string;
+        court_index: number;
+        spot_index: number;
+        player_name: string;
+        player_token: string;
+    }
+
+    interface MatchData {
+        match: {
+            id: string;
+            date: string;
+            courts_count: number;
+        };
+        bookings: Booking[];
+    }
+
+    // State
+    let currentDate: string = '';
+    let currentMatchData: MatchData | null = null;
+    let playerToken: string = localStorage.getItem('padel_token') || '';
+    let playerName: string = localStorage.getItem('padel_name') || '';
+
+    // Initialize Token
+    if (!playerToken) {
+        playerToken = crypto.randomUUID();
+        localStorage.setItem('padel_token', playerToken);
+    }
+
+    // DOM Elements
+    const dateSelector = document.getElementById('date-selector') as HTMLInputElement;
+    const courtsContainer = document.getElementById('courts-container') as HTMLDivElement;
+    const nameDialog = document.getElementById('name-dialog') as HTMLDialogElement;
+    const playerNameInput = document.getElementById('player-name-input') as HTMLInputElement;
+    const playerNameDisplay = document.getElementById('player-name-display') as HTMLSpanElement;
+    const changeNameBtn = document.getElementById('change-name-btn') as HTMLButtonElement;
+
+    // Helper: Update UI based on user state
+    function updateUserState() {
+        if (playerName) {
+            playerNameDisplay.textContent = playerName;
+        } else {
+            playerNameDisplay.textContent = 'Guest';
+            // Prompt for name if trying to book
+        }
+    }
+
+    // Helper: Fetch Match Data
+    async function fetchMatchData(date: string) {
+        courtsContainer.innerHTML = '<p class="loading">Loading...</p>';
+        try {
+            const res = await fetch(`/api/matches/${date}`);
+            if (res.status === 404) {
+                courtsContainer.innerHTML = '<p class="no-match">No matches scheduled for this day.</p>';
+                currentMatchData = null;
+                return;
+            }
+            if (!res.ok) throw new Error('Failed to fetch');
+            
+            const data = await res.json();
+            currentMatchData = data;
+            renderCourts();
+        } catch (error) {
+            console.error(error);
+            courtsContainer.innerHTML = '<p class="error">Error loading matches.</p>';
+        }
+    }
+
+    // Helper: Render Courts
+    function renderCourts() {
+        if (!currentMatchData) return;
+
+        courtsContainer.innerHTML = '';
+        const { match, bookings } = currentMatchData;
+
+        for (let i = 1; i <= match.courts_count; i++) {
+            const courtDiv = document.createElement('div');
+            courtDiv.className = 'court-card';
+            
+            const title = document.createElement('h3');
+            title.textContent = `Court ${i}`;
+            courtDiv.appendChild(title);
+
+            const spotsDiv = document.createElement('div');
+            spotsDiv.className = 'spots-grid';
+
+            for (let j = 1; j <= 4; j++) {
+                const booking = bookings.find(b => b.court_index === i && b.spot_index === j);
+                const spotBtn = document.createElement('button');
+                spotBtn.className = 'spot-btn';
+                
+                if (booking) {
+                    spotBtn.classList.add('taken');
+                    spotBtn.textContent = booking.player_name;
+                    
+                    // Allow delete if it's our booking
+                    if (booking.player_token === playerToken) {
+                        spotBtn.classList.add('mine');
+                        spotBtn.title = 'Click to cancel';
+                        spotBtn.onclick = () => cancelBooking(booking.id);
+                    } else {
+                        spotBtn.disabled = true;
+                    }
+                } else {
+                    spotBtn.classList.add('free');
+                    spotBtn.textContent = 'Join';
+                    spotBtn.onclick = () => handleJoinClick(match.id, i, j);
+                }
+                spotsDiv.appendChild(spotBtn);
+            }
+            courtDiv.appendChild(spotsDiv);
+            courtsContainer.appendChild(courtDiv);
+        }
+    }
+
+    // Action: Join
+    async function handleJoinClick(matchId: string, courtIndex: number, spotIndex: number) {
+        if (!playerName) {
+            nameDialog.showModal();
+            // Save context to retry after name set? For simplicity, just ask user to click again.
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/bookings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    match_id: matchId,
+                    court_index: courtIndex,
+                    spot_index: spotIndex,
+                    player_name: playerName,
+                    player_token: playerToken
+                })
+            });
+
+            if (res.ok) {
+                fetchMatchData(currentDate);
+            } else {
+                const err = await res.json();
+                alert(err.error || 'Failed to book');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error booking spot');
+        }
+    }
+
+    // Action: Cancel
+    async function cancelBooking(bookingId: string) {
+        if (!confirm('Cancel your booking?')) return;
+
+        try {
+            const res = await fetch('/api/bookings', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    booking_id: bookingId,
+                    player_token: playerToken
+                })
+            });
+
+            if (res.ok) {
+                fetchMatchData(currentDate);
+            } else {
+                alert('Failed to cancel');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Error cancelling');
+        }
+    }
+
+    // Event Listeners
+    dateSelector.addEventListener('change', (e) => {
+        currentDate = (e.target as HTMLInputElement).value;
+        if (currentDate) fetchMatchData(currentDate);
+    });
+
+    // Set default date to today
+    const today = new Date().toISOString().split('T')[0];
+    dateSelector.value = today;
+    currentDate = today;
+    // Try fetch immediately
+    fetchMatchData(today);
+
+    changeNameBtn.addEventListener('click', () => {
+        nameDialog.showModal();
+    });
+
+    nameDialog.addEventListener('close', () => {
+        const name = playerNameInput.value.trim();
+        if (name) {
+            playerName = name;
+            localStorage.setItem('padel_name', playerName);
+            updateUserState();
+        }
+    });
+
+    updateUserState();
+</script>
+
+<style>
+    .controls {
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    input[type="date"] {
+        padding: 0.5rem;
+        font-size: 1.2rem;
+        border-radius: 8px;
+        border: none;
+        background: #333;
+        color: white;
+    }
+    .courts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+    }
+    .court-card {
+        background: var(--card-bg);
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 1px solid #333;
+    }
+    .court-card h3 {
+        margin-top: 0;
+        text-align: center;
+        color: rgb(var(--accent-light));
+    }
+    .spots-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+    }
+    .spot-btn {
+        padding: 1rem;
+        border-radius: 8px;
+        font-size: 1rem;
+        text-align: center;
+        transition: all 0.2s;
+    }
+    .spot-btn.free {
+        background: rgba(34, 197, 94, 0.1);
+        color: var(--free);
+        border: 1px dashed var(--free);
+    }
+    .spot-btn.free:hover {
+        background: var(--free);
+        color: black;
+    }
+    .spot-btn.taken {
+        background: #333;
+        color: #888;
+        border: 1px solid #444;
+    }
+    .spot-btn.mine {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--danger);
+        border: 1px solid var(--danger);
+        cursor: pointer;
+    }
+    .spot-btn.mine:hover {
+        background: var(--danger);
+        color: white;
+    }
+    .spot-btn.mine::after {
+        content: ' (You)';
+        font-size: 0.8em;
+    }
+    
+    .user-info {
+        margin-top: 3rem;
+        text-align: center;
+        padding-top: 1rem;
+        border-top: 1px solid #333;
+    }
+    .btn-secondary {
+        background: #444;
+        color: white;
+        margin-left: 1rem;
+    }
+    
+    dialog {
+        background: var(--card-bg);
+        color: white;
+        border: 1px solid #444;
+        border-radius: 8px;
+        padding: 2rem;
+    }
+    dialog::backdrop {
+        background: rgba(0,0,0,0.8);
+    }
+    dialog input {
+        display: block;
+        margin: 1rem 0;
+        padding: 0.5rem;
+        width: 200px;
+    }
+    
+    .loading, .no-match, .error {
+        text-align: center;
+        grid-column: 1 / -1;
+        padding: 2rem;
+        color: #888;
+    }
+</style>

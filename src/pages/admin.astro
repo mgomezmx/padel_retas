@@ -1,0 +1,99 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Admin - Padel Organizer">
+	<main class="container">
+		<h1>Admin <span class="text-gradient">Panel</span></h1>
+        
+        <div class="card">
+            <h2>Create Match Day</h2>
+            <form id="create-match-form">
+                <div class="form-group">
+                    <label for="date">Date</label>
+                    <input type="date" id="date" name="date" required />
+                </div>
+                <div class="form-group">
+                    <label for="courts">Number of Courts</label>
+                    <input type="number" id="courts" name="courts" min="1" max="10" value="3" required />
+                </div>
+                <button type="submit" class="btn-primary">Create / Update</button>
+            </form>
+            <div id="message" class="message"></div>
+        </div>
+
+        <div class="links">
+            <a href="/">Go to User View</a>
+        </div>
+	</main>
+</Layout>
+
+<script>
+    const form = document.getElementById('create-match-form') as HTMLFormElement;
+    const messageDiv = document.getElementById('message') as HTMLDivElement;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const date = formData.get('date');
+        const courts_count = formData.get('courts');
+
+        try {
+            const res = await fetch('/api/matches', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date, courts_count }),
+            });
+            
+            const data = await res.json();
+            
+            if (res.ok) {
+                messageDiv.textContent = 'Match day created successfully!';
+                messageDiv.className = 'message success';
+            } else {
+                messageDiv.textContent = data.error || 'Failed to create match day';
+                messageDiv.className = 'message error';
+            }
+        } catch (error) {
+            messageDiv.textContent = 'An error occurred';
+            messageDiv.className = 'message error';
+        }
+    });
+</script>
+
+<style>
+    .card {
+        background: var(--card-bg);
+        padding: 2rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+    }
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    label {
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+    input {
+        width: 100%;
+        padding: 0.5rem;
+        border-radius: 4px;
+        border: 1px solid #444;
+        background: #333;
+        color: white;
+    }
+    .btn-primary {
+        background: rgb(var(--accent));
+        color: white;
+        width: 100%;
+    }
+    .message {
+        margin-top: 1rem;
+        text-align: center;
+    }
+    .success { color: var(--success); }
+    .error { color: var(--danger); }
+    .links { text-align: center; }
+    a { color: rgb(var(--accent-light)); }
+</style>

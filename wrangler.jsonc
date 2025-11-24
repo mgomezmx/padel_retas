@@ -1,0 +1,23 @@
+{
+  "main": "dist/_worker.js/index.js",
+  "name": "padel_retas",
+  "compatibility_date": "2025-11-24",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "padel-db",
+      "database_id": "padel-db-id"
+    }
+  ]
+}
