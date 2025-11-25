@@ -16,7 +16,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
             return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400 });
         }
 
-        // Check if spot is already taken
+        // Check if spot is already taken new  comment.
         const existing = await locals.runtime.env.DB.prepare(
             'SELECT id FROM bookings WHERE match_id = ? AND court_index = ? AND spot_index = ?'
         )
