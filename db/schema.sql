@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS matches (
     id TEXT PRIMARY KEY,
     date TEXT NOT NULL,
+    start_time TEXT,
     courts_count INTEGER NOT NULL
 );
 

@@ -14,28 +14,33 @@ export const GET: APIRoute = async ({ locals }) => {
 export const POST: APIRoute = async ({ request, locals }) => {
     try {
         const data = await request.json();
-        const { date, courts_count } = data as { date: string; courts_count: number };
+        const { date, start_time, courts_count } = data as { date: string; start_time?: string; courts_count: number };
 
         if (!date || !courts_count) {
-            return new Response(JSON.stringify({ error: 'Missing date or courts_count' }), { status: 400 });
+            return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400 });
         }
 
         const id = crypto.randomUUID();
 
-        // Check if match day already exists
+        // Check if match exists for date, if so update it? For now just insert/replace
+        // Using INSERT OR REPLACE to simplify "update" logic if ID is consistent, 
+        // but here ID is random. Better to check existence or just rely on date unique constraint if we had one.
+        // For this prototype, let's just insert. If date exists, we should probably update it.
+
         const existing = await locals.runtime.env.DB.prepare('SELECT id FROM matches WHERE date = ?').bind(date).first();
 
         if (existing) {
-            // Update existing
-            await locals.runtime.env.DB.prepare('UPDATE matches SET courts_count = ? WHERE date = ?').bind(courts_count, date).run();
-            return new Response(JSON.stringify({ success: true, id: existing.id, message: 'Updated existing match day' }), { status: 200 });
+            await locals.runtime.env.DB.prepare(
+                'UPDATE matches SET courts_count = ?, start_time = ? WHERE id = ?'
+            ).bind(courts_count, start_time || null, existing.id).run();
+            return new Response(JSON.stringify({ success: true, id: existing.id }), { status: 200 });
+        } else {
+            await locals.runtime.env.DB.prepare(
+                'INSERT INTO matches (id, date, start_time, courts_count) VALUES (?, ?, ?, ?)'
+            ).bind(id, date, start_time || null, courts_count).run();
+            return new Response(JSON.stringify({ success: true, id }), { status: 201 });
         }
 
-        await locals.runtime.env.DB.prepare('INSERT INTO matches (id, date, courts_count) VALUES (?, ?, ?)')
-            .bind(id, date, courts_count)
-            .run();
-
-        return new Response(JSON.stringify({ success: true, id }), { status: 201 });
     } catch (e) {
         console.error(e);
         return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });

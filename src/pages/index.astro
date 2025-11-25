@@ -60,6 +60,7 @@ import Layout from '../layouts/Layout.astro';
         match: {
             id: string;
             date: string;
+            start_time?: string;
             courts_count: number;
         };
         bookings: Booking[];
@@ -123,6 +124,16 @@ import Layout from '../layouts/Layout.astro';
 
         courtsContainer.innerHTML = '';
         const { match, bookings } = currentMatchData;
+
+        // Display Date and Time
+        const dateObj = new Date(match.date + 'T00:00:00');
+        const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+        const timeDisplay = match.start_time ? ` at ${match.start_time}` : '';
+        
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'match-info';
+        infoDiv.innerHTML = `<h2>${dayName} <span class="text-gradient">${match.date}</span>${timeDisplay}</h2>`;
+        courtsContainer.appendChild(infoDiv);
 
         for (let i = 1; i <= match.courts_count; i++) {
             const courtDiv = document.createElement('div');
@@ -419,6 +430,15 @@ import Layout from '../layouts/Layout.astro';
         border-radius: 4px;
     }
     
+    .match-info {
+        grid-column: 1 / -1;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    .match-info h2 {
+        font-size: 1.5rem;
+        color: white;
+    }
     .loading, .no-match, .error {
         text-align: center;
         grid-column: 1 / -1;
