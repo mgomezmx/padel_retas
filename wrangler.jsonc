@@ -1,6 +1,6 @@
 {
   "main": "dist/_worker.js/index.js",
-  "name": "padel_retas",
+  "name": "padel_retas_whatsapp",
   "compatibility_date": "2025-11-24",
   "compatibility_flags": [
     "nodejs_compat",
