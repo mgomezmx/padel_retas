@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     court_index INTEGER NOT NULL,
     spot_index INTEGER NOT NULL,
     player_name TEXT NOT NULL,
+    player_level INTEGER,
     player_token TEXT NOT NULL,
     created_at INTEGER NOT NULL,
     FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE

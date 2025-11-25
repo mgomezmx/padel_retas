@@ -3,11 +3,12 @@ import type { APIRoute } from 'astro';
 export const POST: APIRoute = async ({ request, locals }) => {
     try {
         const data = await request.json();
-        const { match_id, court_index, spot_index, player_name, player_token } = data as {
+        const { match_id, court_index, spot_index, player_name, player_level, player_token } = data as {
             match_id: string;
             court_index: number;
             spot_index: number;
             player_name: string;
+            player_level?: number;
             player_token: string;
         };
 
@@ -30,9 +31,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
         const created_at = Date.now();
 
         await locals.runtime.env.DB.prepare(
-            'INSERT INTO bookings (id, match_id, court_index, spot_index, player_name, player_token, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO bookings (id, match_id, court_index, spot_index, player_name, player_level, player_token, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
         )
-            .bind(id, match_id, court_index, spot_index, player_name, player_token, created_at)
+            .bind(id, match_id, court_index, spot_index, player_name, player_level || null, player_token, created_at)
             .run();
 
         return new Response(JSON.stringify({ success: true, id }), { status: 201 });

@@ -1,6 +1,16 @@
 
 import type { APIRoute } from 'astro';
 
+export const GET: APIRoute = async ({ locals }) => {
+    try {
+        const matches = await locals.runtime.env.DB.prepare('SELECT * FROM matches ORDER BY date DESC').all();
+        return new Response(JSON.stringify(matches.results), { status: 200 });
+    } catch (e) {
+        console.error(e);
+        return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
+    }
+};
+
 export const POST: APIRoute = async ({ request, locals }) => {
     try {
         const data = await request.json();

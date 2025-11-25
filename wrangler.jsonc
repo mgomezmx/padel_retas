@@ -16,8 +16,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "padel-db",
-      "database_id": "padel-db-id"
+      "database_name": "padel-db-prod",
+      "database_id": "530d1ea1-0097-45d3-8179-5b1ebe7a52cc"
     }
   ]
 }

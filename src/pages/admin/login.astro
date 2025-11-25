@@ -1,0 +1,75 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Admin Login">
+    <main class="container">
+        <h1>Admin <span class="text-gradient">Login</span></h1>
+        <div class="card">
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required />
+                </div>
+                <button type="submit" class="btn-primary">Login</button>
+            </form>
+            <div id="message" class="message"></div>
+        </div>
+    </main>
+</Layout>
+
+<script>
+    const form = document.getElementById('login-form') as HTMLFormElement;
+    const messageDiv = document.getElementById('message') as HTMLDivElement;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const password = formData.get('password');
+
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password }),
+            });
+
+            if (res.ok) {
+                window.location.href = '/admin';
+            } else {
+                messageDiv.textContent = 'Invalid password';
+                messageDiv.className = 'message error';
+            }
+        } catch (error) {
+            messageDiv.textContent = 'Error logging in';
+            messageDiv.className = 'message error';
+        }
+    });
+</script>
+
+<style>
+    .card {
+        background: var(--card-bg);
+        padding: 2rem;
+        border-radius: 8px;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; margin-bottom: 0.5rem; }
+    input {
+        width: 100%;
+        padding: 0.5rem;
+        border-radius: 4px;
+        border: 1px solid #444;
+        background: #333;
+        color: white;
+    }
+    .btn-primary {
+        width: 100%;
+        background: rgb(var(--accent));
+        color: white;
+    }
+    .message { margin-top: 1rem; text-align: center; }
+    .error { color: var(--danger); }
+</style>

@@ -1,0 +1,177 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+
+const { date } = Astro.params;
+
+if (!Astro.cookies.has('admin_session')) {
+    return Astro.redirect('/admin/login');
+}
+
+if (!date) {
+    return Astro.redirect('/admin');
+}
+
+// Fetch match data
+let match = null;
+let bookings = [];
+try {
+    match = await Astro.locals.runtime.env.DB.prepare('SELECT * FROM matches WHERE date = ?').bind(date).first();
+    if (match) {
+        const res = await Astro.locals.runtime.env.DB.prepare('SELECT * FROM bookings WHERE match_id = ?').bind(match.id).all();
+        bookings = res.results;
+    }
+} catch (e) {
+    console.error(e);
+}
+
+if (!match) {
+    return new Response('Match not found', { status: 404 });
+}
+---
+
+<Layout title={`Admin - Match ${date}`}>
+    <main class="container">
+        <div class="header">
+            <a href="/admin" class="back-link">&larr; Back to Dashboard</a>
+            <h1>Manage <span class="text-gradient">{date}</span></h1>
+        </div>
+
+        <div class="courts-grid">
+            {Array.from({ length: match.courts_count }, (_, i) => i + 1).map(courtNum => (
+                <div class="court-card">
+                    <h3>Court {courtNum}</h3>
+                    <div class="spots-grid">
+                        {Array.from({ length: 4 }, (_, j) => j + 1).map(spotNum => {
+                            const booking = bookings.find((b: any) => b.court_index === courtNum && b.spot_index === spotNum);
+                            return (
+                                <div class={`spot-item ${booking ? 'taken' : 'free'}`}>
+                                    {booking ? (
+                                        <>
+                                            <div class="player-info">
+                                                <span class="player-name">{booking.player_name}</span>
+                                                {booking.player_level && <span class="player-level">Lvl {booking.player_level}</span>}
+                                            </div>
+                                            <button 
+                                                class="btn-delete" 
+                                                data-id={booking.id}
+                                                onclick={`deleteBooking('${booking.id}')`}
+                                            >
+                                                &times;
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <span class="empty-label">Empty</span>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            ))}
+        </div>
+    </main>
+</Layout>
+
+<script is:inline>
+    async function deleteBooking(bookingId) {
+        if (!confirm('Are you sure you want to remove this player?')) return;
+
+        try {
+            const res = await fetch('/api/bookings', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    booking_id: bookingId,
+                    admin_secret: 'admin' // In a real app, use the session cookie on server side or a token
+                })
+            });
+
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                alert('Failed to delete booking');
+            }
+        } catch (e) {
+            alert('Error deleting booking');
+        }
+    }
+</script>
+
+<style>
+    .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 2rem;
+    }
+    .back-link {
+        color: rgb(var(--accent-light));
+        text-decoration: none;
+        font-weight: bold;
+    }
+    .courts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+    }
+    .court-card {
+        background: var(--card-bg);
+        padding: 1.5rem;
+        border-radius: 12px;
+        border: 1px solid #333;
+    }
+    .court-card h3 {
+        margin-top: 0;
+        text-align: center;
+        color: rgb(var(--accent-light));
+        border-bottom: 1px solid #444;
+        padding-bottom: 0.5rem;
+    }
+    .spots-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    .spot-item {
+        padding: 0.75rem;
+        border-radius: 6px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .spot-item.free {
+        background: rgba(34, 197, 94, 0.05);
+        color: #666;
+        border: 1px dashed #444;
+    }
+    .spot-item.taken {
+        background: #333;
+        border: 1px solid #444;
+    }
+    .player-info {
+        display: flex;
+        flex-direction: column;
+    }
+    .player-name { font-weight: bold; color: white; }
+    .player-level { font-size: 0.8rem; color: #aaa; }
+    
+    .btn-delete {
+        background: rgba(239, 68, 68, 0.2);
+        color: var(--danger);
+        border: none;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        transition: background 0.2s;
+    }
+    .btn-delete:hover {
+        background: var(--danger);
+        color: white;
+    }
+</style>
