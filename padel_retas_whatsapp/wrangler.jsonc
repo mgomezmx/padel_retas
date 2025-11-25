@@ -1,0 +1,23 @@
+{
+  "main": "dist/_worker.js/index.js",
+  "name": "padel_retas_whatsapp",
+  "compatibility_date": "2025-11-24",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "global_fetch_strictly_public"
+  ],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "padel-db-whatsapp",
+      "database_id": "ff443f93-6eed-437c-80d6-78b7abe01992"
+    }
+  ]
+}

@@ -1,0 +1,153 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+// Check auth
+if (!Astro.cookies.has('admin_session')) {
+    return Astro.redirect('/admin/login');
+}
+
+// Fetch matches for dashboard
+let matches = [];
+try {
+    const res = await Astro.locals.runtime.env.DB.prepare('SELECT * FROM matches ORDER BY date DESC').all();
+    matches = res.results;
+} catch (e) {
+    console.error(e);
+}
+---
+
+<Layout title="Admin Dashboard">
+    <main class="container">
+        <h1>Admin <span class="text-gradient">Dashboard</span></h1>
+
+        <div class="grid-container">
+            <!-- Create Match Section -->
+            <div class="card">
+                <h2>Create Match Day</h2>
+                <form id="create-match-form">
+                    <div class="form-group">
+                        <label for="date">Date</label>
+                        <input type="date" id="date" name="date" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="time">Start Time</label>
+                        <input type="time" id="time" name="time" />
+                    </div>
+                    <div class="form-group">
+                        <label for="courts">Number of Courts</label>
+                        <input type="number" id="courts" name="courts" min="1" max="10" value="3" required />
+                    </div>
+                    <button type="submit" class="btn-primary">Create / Update</button>
+                </form>
+                <div id="message" class="message"></div>
+            </div>
+
+            <!-- Matches List Section -->
+            <div class="matches-list">
+                <h2>Scheduled Matches</h2>
+                <div class="matches-grid">
+                    {matches.map((match: any) => (
+                        <a href={`/admin/match/${match.date}`} class="match-card">
+                            <div class="match-date">{match.date}</div>
+                            {match.start_time && <div class="match-time">{match.start_time}</div>}
+                            <div class="match-courts">{match.courts_count} Courts</div>
+                            <div class="match-status">Manage &rarr;</div>
+                        </a>
+                    ))}
+                    {matches.length === 0 && <p>No matches scheduled.</p>}
+                </div>
+            </div>
+        </div>
+    </main>
+</Layout>
+
+<script>
+    const form = document.getElementById('create-match-form') as HTMLFormElement;
+    const messageDiv = document.getElementById('message') as HTMLDivElement;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(form);
+        const date = formData.get('date');
+        const start_time = formData.get('time');
+        const courts_count = formData.get('courts');
+
+        try {
+            const res = await fetch('/api/matches', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date, start_time, courts_count }),
+            });
+            
+            if (res.ok) {
+                window.location.reload();
+            } else {
+                const data = await res.json();
+                messageDiv.textContent = data.error || 'Failed to create match day';
+                messageDiv.className = 'message error';
+            }
+        } catch (error) {
+            messageDiv.textContent = 'An error occurred';
+            messageDiv.className = 'message error';
+        }
+    });
+</script>
+
+<style>
+    .grid-container {
+        display: grid;
+        gap: 2rem;
+    }
+    .card {
+        background: var(--card-bg);
+        padding: 2rem;
+        border-radius: 8px;
+    }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; margin-bottom: 0.5rem; }
+    input {
+        width: 100%;
+        padding: 0.5rem;
+        border-radius: 4px;
+        border: 1px solid #444;
+        background: #333;
+        color: white;
+    }
+    .btn-primary {
+        background: rgb(var(--accent));
+        color: white;
+        width: 100%;
+    }
+    .message { margin-top: 1rem; text-align: center; }
+    .error { color: var(--danger); }
+
+    .matches-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    .match-card {
+        background: var(--card-bg);
+        padding: 1.5rem;
+        border-radius: 8px;
+        text-decoration: none;
+        color: white;
+        border: 1px solid #444;
+        transition: transform 0.2s, border-color 0.2s;
+    }
+    .match-card:hover {
+        transform: translateY(-2px);
+        border-color: rgb(var(--accent));
+    }
+    .match-date {
+        font-size: 1.2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    .match-courts { color: #aaa; }
+    .match-status {
+        margin-top: 1rem;
+        color: rgb(var(--accent-light));
+        font-size: 0.9rem;
+    }
+</style>
